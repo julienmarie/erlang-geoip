@@ -101,8 +101,7 @@
 %%
 %% Settings
 %%
--define(DRIVER_LOCATION,".").
-%-define(DRIVER_LOCATION, (code:priv_dir(ee_server))).
+-define(DRIVER_LOCATION, (filename:dirname(code:which(?MODULE)) ++ "/../priv/")).
 %-define(GEOIP_DATABASE, (code:priv_dir(ee_server) ++ "/" ++ "GeoIP.dat")).
 -define(GEOIP_DATABASE, "GeoIP.dat").
 %%
