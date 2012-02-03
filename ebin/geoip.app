@@ -3,7 +3,8 @@
   {description, ""},
   {vsn, "1.0.0"},
   {modules, [
-             geoip
+             geoip,
+             geoip_server
             ]},
   {registered, []},
   {applications, [

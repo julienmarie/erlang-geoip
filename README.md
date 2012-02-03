@@ -28,6 +28,16 @@ Add it as a dependancy in your `rebar.config`:
 
 The argument passed to `new` is the location of the MaxMind binary data file. You can download a free to use country level dataset from [the MaxMind website](http://www.maxmind.com/app/geolitecountry).
 
+## Server
+
+`geoip_server` implements a `gen_server` behaviour for use with supervisors.
+
+    > geoip_server:start_link("GeoIP.dat").
+    {ok, <0.35.0>}
+
+    > geoip_server:get_country_by_ip("24.24.24.24").
+    "United States"
+
 ## Performance
 
 In can do over 1,000,000 lookups per second on consumer grade hardware. 1.6GHz Intel Core i5 Macbook Air, 4GB RAM, OS X Lion:
