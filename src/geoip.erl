@@ -122,8 +122,12 @@ new(Name) ->
 new(Name, Type) -> 
 	ok = erl_ddll:load(?DRIVER_LOCATION, ?MODULE),
 	Port = open_port({spawn, ?MODULE},[binary]),
-	[] = open(Port, Name, Type),
-	Port.
+	case open(Port, Name, Type) of
+		[] ->
+			{ok, Port};
+		Error ->
+			{error, Error}
+	end.
 
 delete(Port) -> 
 	port_close(Port),
