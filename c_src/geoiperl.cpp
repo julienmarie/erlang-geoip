@@ -13,28 +13,28 @@ using namespace std;
 enum { EVENT_OPEN=0, EVENT_USE_BINARY, EVENT_USE_STRING, EVENT_COUNTRY_BY_IP };
 
 
-class GeoIPErl 
+class GeoIPErl
 {
 	std::string dbName;
 	GeoIP *geoip;
 	ErlDrvPort port;
 	int returnType; //0 for string, PORT_CONTROL_FLAG_BINARY for binary
-	
+
 public:
 	GeoIPErl() :
 		geoip(0), port(0), returnType(0)
 	{
-		
+
 	}
 	~GeoIPErl() {}
-	
+
 
 public:
 	static ErlDrvData onStart(ErlDrvPort port, char *buff)
 	{
 		GeoIPErl* d = new GeoIPErl;
 		d->port = port;
-		
+
 		return (ErlDrvData)d;
 	}
 
@@ -43,7 +43,7 @@ public:
 		GeoIPErl* d = reinterpret_cast<GeoIPErl*>(handle);
 		if(d->geoip)
 			GeoIP_delete(d->geoip);
-		
+
 		delete d;
 	}
 
@@ -51,7 +51,7 @@ public:
 	{
 		rlen = strlen(msg);
 		if(rlen <= bufLen)
-		{ 
+		{
 			std::memcpy(*rbuf,msg,rlen);
 		}
 		else
@@ -68,19 +68,19 @@ public:
 				*rbuf = (char*)buf;
 				std::memcpy(buf->orig_bytes,msg,rlen);
 			}
-			
+
 		}
-		
+
 	}
-	
+
 	static inline void makeEmptyMsg(char **rbuf, int &rlen)
 	{
 		*rbuf = NULL;
 		rlen = 0;
 	}
-	
+
 	//static void onOutput(ErlDrvData handle, char *str, int len)
-	static int onControl(ErlDrvData handle, unsigned int command, char *str, int len, char **rbuf, int rlen)
+	static ErlDrvSSizeT onControl(ErlDrvData handle, unsigned int command, char *str, ErlDrvSizeT len, char **rbuf, ErlDrvSizeT rlen)
 	{
 		GeoIPErl* d = reinterpret_cast<GeoIPErl*>(handle);
 		register int ret;
@@ -90,9 +90,9 @@ public:
 			case EVENT_OPEN:
 				if(d->geoip)
 					GeoIP_delete(d->geoip);
-				
+
 				d->dbName = str+1;
-				
+
 				d->geoip = GeoIP_open(d->dbName.c_str(),str[0]);
 				if(d->geoip == 0)
 				{
@@ -103,23 +103,23 @@ public:
 				{
 					makeEmptyMsg(rbuf,ret);
 				}
-				
+
 				break;
-				
+
 			case EVENT_USE_STRING:
 				set_port_control_flags(d->port, 0);
 				d->returnType = 0;
 				makeEmptyMsg(rbuf,ret);
 				break;
-				
+
 			case EVENT_USE_BINARY:
 				set_port_control_flags(d->port, PORT_CONTROL_FLAG_BINARY);
 				d->returnType = PORT_CONTROL_FLAG_BINARY;
 				makeEmptyMsg(rbuf,ret);
 				break;
 
-				
-			//param: char *IP 		
+
+			//param: char *IP
 			case EVENT_COUNTRY_BY_IP:
 				if(d->geoip != 0)
 				{
@@ -139,13 +139,13 @@ public:
 					char *errorMsg = "Geoip has not been initialized!";
 					makeMsg(d->returnType,errorMsg, rbuf, rlen, ret);
 				}
-				
+
 				break;
-				
+
 			default:
 				makeEmptyMsg(rbuf,ret);
 		}
-		
+
 		return ret;
 
 	}
@@ -157,7 +157,7 @@ public:
 // C code goes below
 
 
-static 
+static
 ErlDrvEntry driver = {
     NULL,               /* F_PTR init, N/A */
     &GeoIPErl::onStart,        /* L_PTR start, called when port is opened */
@@ -184,7 +184,7 @@ ErlDrvEntry driver = {
 	NULL				 /* stop_select -- Called to close an event object */
 };
 
-extern "C" 
+extern "C"
 {
 	DRIVER_INIT(DRIVER_NAME) /* must match name in driver_entry */
 	{
