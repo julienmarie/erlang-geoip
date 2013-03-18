@@ -19,25 +19,25 @@
 %%
 %% Advanced usage:
 %%
-%% > Geoip = geoip:new("GeoIP.dat").
-%% #Port<0.2755>
+%% > {ok, Geoip} = geoip:new("GeoIP.dat").
+%% {ok, #Port<0.2755>}
 %%
 %% > geoip:use_binary(Geoip).
 %% []
 %%
-%% > geoip:get_country_by_ip(Geoip, "24.24.24.24").
+%% > geoip:get_country_name_by_ip(Geoip, "24.24.24.24").
 %% <<"United States">>
 %%
-%% > geoip:get_country_by_ip(Geoip, "invalidip").
+%% > geoip:get_country_name_by_ip(Geoip, "invalidip").
 %% []
 %%
 %% > geoip:use_string(Geoip).                      
 %% []
 %%
-%% > geoip:get_country_by_ip(Geoip, "24.24.24.24").
+%% > geoip:get_country_name_by_ip(Geoip, "24.24.24.24").
 %% "United States"
 %%
-%% > geoip:get_country_by_ip(Geoip, "invalidip").
+%% > geoip:get_country_name_by_ip(Geoip, "invalidip").
 %% []
 %%
 %% > geoip:delete(Geoip).
@@ -73,13 +73,16 @@
 %%
 
 %% new/delete functions
--export([new/1, new/2, delete/1]).
+-export([new/1, new/2, new/3, delete/1]).
 
 %% options
--export([use_string/1,use_binary/1]).
+-export([use_string/1, use_binary/1]).
 
 %% public API
--export([get_country_by_ip/2]).
+-export([get_country_name_by_ip/2]).
+-export([get_country_code_by_ip/2]).
+-export([get_country_code3_by_ip/2]).
+
 
 -export([benchmark/0, 
 		 benchmark/1, benchmark_overhead/1]).
@@ -88,7 +91,9 @@
 -define(EVENT_OPEN, 0).
 -define(EVENT_USE_BINARY, 1).
 -define(EVENT_USE_STRING, 2).
--define(EVENT_COUNTRY_BY_IP, 3).
+-define(EVENT_COUNTRY_NAME_BY_IP, 3).
+-define(EVENT_COUNTRY_CODE_BY_IP, 4).
+-define(EVENT_COUNTRY_CODE3_BY_IP, 5).
 
 
 %% Geoip flags
@@ -117,39 +122,62 @@
 -define(call(Port, Cmd, Data), port_control(Port, Cmd, Data)).
 
 new(Name) ->
-	new(Name, ?GEOIP_MEMORY_CACHE).
-	
-new(Name, Type) -> 
-	ok = erl_ddll:load(?DRIVER_LOCATION, ?MODULE),
-	Port = open_port({spawn, ?MODULE},[binary]),
-	case open(Port, Name, Type) of
-		[] ->
-			{ok, Port};
-		Error ->
-			{error, Error}
-	end.
+    new(Name, ?GEOIP_MEMORY_CACHE, string).
+
+new(Name, Type) ->
+    new(Name, Type, string).
+
+new(Name, Type, ReturnType) ->
+    ok = erl_ddll:load(?DRIVER_LOCATION, ?MODULE),
+    Port = open_port({spawn, ?MODULE},[binary]),
+    case open(Port, Name, Type) of
+	[] ->
+	    case ReturnType of
+		binary ->
+		    use_binary(Port);
+		string ->
+		    use_string(Port)
+	    end,
+	    {ok, Port};
+	Error ->
+	    {error, Error}
+    end.
 
 delete(Port) -> 
-	port_close(Port),
-	erl_ddll:unload(?MODULE).
+    port_close(Port),
+    erl_ddll:unload(?MODULE).
 
-open(Port, Name, Type) when is_integer(Type),is_binary(Name) ->	
-	?call(Port, ?EVENT_OPEN, <<Type, Name/binary, 0>>);
+open(Port, Name, Type) when is_integer(Type), is_binary(Name) ->	
+    ?call(Port, ?EVENT_OPEN, <<Type, Name/binary, 0>>);
 open(Port, Name, Type) when is_integer(Type) ->	
-	?call(Port, ?EVENT_OPEN, [Type, Name, 0]).
+    ?call(Port, ?EVENT_OPEN, [Type, Name, 0]).
 
-get_country_by_ip(Port, IP) when is_binary(IP) ->
-	?call(Port, ?EVENT_COUNTRY_BY_IP, <<IP/binary, 0>>);
-get_country_by_ip(Port, IP) ->
-	?call(Port, ?EVENT_COUNTRY_BY_IP, [IP, 0]).
+get_country_name_by_ip(Port, IP) ->
+    ?call(Port, ?EVENT_COUNTRY_NAME_BY_IP, normal_ip(IP)).
+
+get_country_code_by_ip(Port, IP) ->
+    ?call(Port, ?EVENT_COUNTRY_CODE_BY_IP, normal_ip(IP)).
+
+get_country_code3_by_ip(Port, IP) ->
+    ?call(Port, ?EVENT_COUNTRY_CODE3_BY_IP, normal_ip(IP)).
+
 
 %% tell driver to return string instead of binary, this is the default option
 use_string(Port) ->
-	?call(Port, ?EVENT_USE_STRING, <<>>).
+    ?call(Port, ?EVENT_USE_STRING, <<>>).
 	
 %% tell driver to return binary instead of string	
 use_binary(Port) ->
-	?call(Port, ?EVENT_USE_BINARY, <<>>).
+    ?call(Port, ?EVENT_USE_BINARY, <<>>).
+
+
+normal_ip(IP) when is_binary(IP) ->
+    <<IP/binary, 0>>;
+normal_ip(IP) when is_list(IP) ->
+    [IP, 0];
+normal_ip(IP) when is_tuple(IP) ->
+    [inet_parse:ntoa(IP), 0].
+
 	
 %%
 %% test and benchmark code...
@@ -167,11 +195,11 @@ ip_test_internal(Type) ->
 	Port = open_port({spawn, ?MODULE},[binary]),
     link(Port),
 	open(Port, ?GEOIP_DATABASE, Type),
-	[?assertEqual(Country,get_country_by_ip(Port, IP)) || {IP, Country} <- ip_input()],
-	[?assertEqual(Country,get_country_by_ip(Port, IP)) || {IP, Country} <- ip_input2()],
+	[?assertEqual(Country,get_country_name_by_ip(Port, IP)) || {IP, Country} <- ip_input()],
+	[?assertEqual(Country,get_country_name_by_ip(Port, IP)) || {IP, Country} <- ip_input2()],
 	use_binary(Port), % switch to binary return mode
-	[?assertEqual(Country,get_country_by_ip(Port, IP)) || {IP, Country} <- ip_input3()],
-	[?assertEqual(Country,get_country_by_ip(Port, IP)) || {IP, Country} <- ip_input4()],
+	[?assertEqual(Country,get_country_name_by_ip(Port, IP)) || {IP, Country} <- ip_input3()],
+	[?assertEqual(Country,get_country_name_by_ip(Port, IP)) || {IP, Country} <- ip_input4()],
 	port_close(Port),
 	erl_ddll:unload(?MODULE).
 
@@ -266,6 +294,6 @@ benchmark(Port, N, [], IP ) ->
 	benchmark(Port, N, IP, []);
 	
 benchmark(Port, N, [IP|T], IPList ) ->
-	get_country_by_ip(Port, IP), 
+	get_country_name_by_ip(Port, IP), 
 	benchmark(Port, N-1, T, [IP|IPList]).
 

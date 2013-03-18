@@ -10,7 +10,7 @@
 
 using namespace std;
 
-enum { EVENT_OPEN=0, EVENT_USE_BINARY, EVENT_USE_STRING, EVENT_COUNTRY_BY_IP };
+enum { EVENT_OPEN=0, EVENT_USE_BINARY, EVENT_USE_STRING, EVENT_COUNTRY_NAME_BY_IP, EVENT_COUNTRY_CODE_BY_IP, EVENT_COUNTRY_CODE3_BY_IP};
 
 
 class GeoIPErl
@@ -118,12 +118,57 @@ public:
 				makeEmptyMsg(rbuf,ret);
 				break;
 
-
 			//param: char *IP
-			case EVENT_COUNTRY_BY_IP:
+			case EVENT_COUNTRY_NAME_BY_IP:
 				if(d->geoip != 0)
 				{
 					const char *country = GeoIP_country_name_by_addr(d->geoip, str);
+					if(country)
+					{
+						//d->msg((char*)country);
+						makeMsg(d->returnType,country, rbuf, rlen, ret);
+					}
+					else
+					{
+						makeEmptyMsg(rbuf,ret);
+					}
+				}
+				else
+				{
+					char *errorMsg = "Geoip has not been initialized!";
+					makeMsg(d->returnType,errorMsg, rbuf, rlen, ret);
+				}
+
+				break;
+
+			//param: char *IP
+			case EVENT_COUNTRY_CODE_BY_IP:
+				if(d->geoip != 0)
+				{
+					const char *country = GeoIP_country_code_by_addr(d->geoip, str);
+					if(country)
+					{
+						//d->msg((char*)country);
+						makeMsg(d->returnType,country, rbuf, rlen, ret);
+					}
+					else
+					{
+						makeEmptyMsg(rbuf,ret);
+					}
+				}
+				else
+				{
+					char *errorMsg = "Geoip has not been initialized!";
+					makeMsg(d->returnType,errorMsg, rbuf, rlen, ret);
+				}
+
+				break;
+
+			//param: char *IP
+			case EVENT_COUNTRY_CODE3_BY_IP:
+				if(d->geoip != 0)
+				{
+					const char *country = GeoIP_country_code3_by_addr(d->geoip, str);
 					if(country)
 					{
 						//d->msg((char*)country);

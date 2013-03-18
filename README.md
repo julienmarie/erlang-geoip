@@ -8,19 +8,34 @@ Add it as a dependancy in your `rebar.config`:
 
     {deps,
       [
-        {geoip, ".*", {git, "git://github.com/lucaspiller/erlang-geoip.git", "master"}},
+        {geoip, ".*", {git, "git://github.com/ussi/erlang-geoip.git", "master"}},
       ]
     }.
 
 ## Basic Usage
 
-    > Geoip = geoip:new("GeoIP.dat").
-    #Port<0.2755>
+    > {ok, Geoip} = geoip:new("GeoIP.dat").
+    {ok, #Port<0.2755>}
 
-    > geoip:get_country_by_ip(Geoip, "24.24.24.24").
+    > geoip:get_country_name_by_ip(Geoip, {14,14,14,14}). 
+    "Japan"
+
+    > geoip:get_country_code_by_ip(Geoip, {14,14,14,14}). 
+    "JP"
+
+    > geoip:get_country_code3_by_ip(Geoip, {14,14,14,14}). 
+    "JPN"
+
+    > geoip:get_country_name_by_ip(Geoip, "24.24.24.24").
     "United States"
 
-    > geoip:get_country_by_ip(Geoip, <<"80.24.24.80">>).
+    > geoip:get_country_code_by_ip(Geoip, "24.24.24.24").
+    "US"
+
+    > geoip:get_country_code3_by_ip(Geoip, "24.24.24.24").
+    "USA"
+
+    > geoip:get_country_name_by_ip(Geoip, <<"80.24.24.80">>).
     "Spain"
 
     > geoip:delete(Geoip).
@@ -35,7 +50,7 @@ The argument passed to `new` is the location of the MaxMind binary data file. Yo
     > geoip_server:start_link("GeoIP.dat").
     {ok, <0.35.0>}
 
-    > geoip_server:get_country_by_ip("24.24.24.24").
+    > geoip_server:get_country_name_by_ip("24.24.24.24").
     "United States"
 
 ## Performance
@@ -52,10 +67,10 @@ In can do over 1,000,000 lookups per second on consumer grade hardware. 1.6GHz I
 
 Invalid IPs return an empty list.
 
-    > geoip:get_country_by_ip(Geoip, "not_an_ip").
+    > geoip:get_country_name_by_ip(Geoip, "not_an_ip").
     []
 
-    > geoip:get_country_by_ip(Geoip, "360.12.32.1").
+    > geoip:get_country_name_by_ip(Geoip, "360.12.32.1").
     []
 
 Call `use_binary` to return results as binaries:
@@ -81,8 +96,26 @@ The second flag is used to pass flags to the MaxMind C library. The following fl
 * 2 - `GEOIP_CHECK_CACHE`  - Check whether the dataset has been changed, and reinstantiate if needed on each call. This isn't usually needed unless you are debugging data sets.
 
 
-    > Geoip = geoip:new("GeoIP.dat", 0).
-    #Port<0.2755>
+    > {ok, Geoip} = geoip:new("GeoIP.dat", 0).
+    {ok, #Port<0.2755>}
+
+Last argument is used for set default type of return values
+
+
+    > {ok, Geoip} = geoip:new("GeoIP.dat", 1, binary).
+    {ok, #Port<0.2755>}
+
+    > geoip:get_country_code3_by_ip(Geoip, {14,14,14,14}). 
+    <<"JPN">>
+
+And same for server
+
+    > geoip_server:start_link("GeoIP.dat", 1, binary).
+    {ok,<0.5048.0>}
+
+    > geoip_server:get_country_code3_by_ip({14,14,14,14}).
+    <<"JPN">>
+
 
 ## Tests
 
